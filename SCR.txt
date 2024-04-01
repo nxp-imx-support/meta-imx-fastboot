@@ -1,0 +1,48 @@
+NXP Software Content Register
+
+Release - NXP i.MX Falcon Fast Boot 1.0
+July 2024
+
+Outgoing License:            LA_OPT_NXP_Software_License v57 July 2024 - Additional distribution license granted - Section 2.3 applies
+License File:                LICENSE.txt
+
+Package:                     uboot-imx.git
+Version:                     2024.04
+Outgoing License:            GPL-2.0 
+License File:                Licenses/gpl-2.0.txt
+Package Category:            BSP
+Type of Content:             source
+Description and comments:    Bootloader with i.MX-specific capabilities
+Release Location:            https://github.com/nxp-imx/uboot-imx -b lf-6.6.23-2.0.0
+Origin:                      NXP (GPL-2.0)
+                             Das U-Boot - Universal Bootloader (GPL-2.0) - http://www.denx.de/wiki/U-Boot/WebHome
+                             Android Open Source Project (BSD-2-Clause) - https://source.android.com/
+                             zlib (zlib license) - http://www.zlib.net/
+
+--------------------------------------------
+
+Package:                     imx-atf.git
+Version:                     2.10
+Outgoing License:            BSD-3-Clause 
+License File:                docs/license.rst
+Package Category:            BSP
+Type of Content:             source
+Description and comments:    ARM Trusted Firmware
+Release Location:            https://github.com/nxp-imx/imx-atf -b lf-6.6.23-2.0.0
+Origin:                      NXP (BSD-3-clause)
+                             arm-trusted-firmware - ARM Limited (BSD-3-clause) - http://github.com/ARM-software/arm-trusted-firmware/
+
+--------------------------------------------
+
+Package:                     imx-mkimage.git
+Version:                     
+Outgoing License:            GPL-2.0 
+License File:                LICENSE
+Package Category:            BSP
+Type of Content:             source
+Description and comments:    Make Image BootLoader
+Release Location:            https://github.com/nxp-imx/imx-mkimage -b lf-6.6.23-2.0.0
+Origin:                      NXP (GPL-2.0)
+                             Das U-Boot - Universal Bootloader (GPL-2.0) - http://www.denx.de/wiki/U-Boot/WebHome
+
+--------------------------------------------
