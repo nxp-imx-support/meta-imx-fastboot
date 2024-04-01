@@ -1,0 +1,42 @@
+From 376b6f23d3cbaf901a140a2401181406dcf27538 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Tue, 24 Sep 2024 14:22:22 +0300
+Subject: [PATCH] imx95: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ iMX95/soc.mak | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/iMX95/soc.mak b/iMX95/soc.mak
+index c7ddee3..e7c5d72 100644
+--- a/iMX95/soc.mak
++++ b/iMX95/soc.mak
+@@ -252,6 +252,15 @@ u-boot-atf-container-spinand.img: bl31.bin u-boot-hash.bin
+ 			   -out u-boot-atf-container-spinand.img; \
+ 	fi
+ 
++kernel-atf-container.img: bl31.bin Image
++	./$(MKIMG) -soc IMX9 -c \
++		   -ap bl31.bin a55 $(ATF_LOAD_ADDR) \
++		   -ap Image a55 $(UBOOT_LOAD_ADDR) \
++		   -out kernel-atf-container.img; \
++
++uImage: Image
++	mkimage -A arm -O linux -T kernel -C none -a 0x93FFFFC0 -e 0x94000000 -n "Linux kernel" -d Image uImage
++
+ fcb.bin: FORCE
+ 	./$(QSPI_FCB_GEN) $(QSPI_HEADER)
+ 
+@@ -261,7 +270,7 @@ flash_fw.bin: FORCE
+ 
+ .PHONY: clean nightly
+ clean:
+-	@rm -f $(MKIMG) u-boot-atf-container.img u-boot-spl-ddr-v2.bin m33-oei-ddrfw.bin a55-oei-ddrfw.bin u-boot-hash.bin flash.bin head.hash boot-spl-container.img
++	@rm -f $(MKIMG) u-boot-atf-container.img u-boot-spl-ddr-v2.bin m33-oei-ddrfw.bin a55-oei-ddrfw.bin u-boot-hash.bin flash.bin head.hash boot-spl-container.img kernel-atf-container.img uImage
+ 	@rm -rf extracted_imgs
+ 	@echo "imx95 clean done"
+ 
+-- 
+2.25.1
+

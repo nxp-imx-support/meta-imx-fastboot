@@ -1,0 +1,160 @@
+From 637ac7038eb584386a5754928af6cc731f19c4c3 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Tue, 26 Nov 2024 22:49:52 +0200
+Subject: [PATCH] imx8ulp: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ bl31/bl31_main.c                        | 17 ++++++++
+ plat/imx/imx8ulp/imx8ulp_bl31_setup.c   | 56 ++++++++++++++++++++++++-
+ plat/imx/imx8ulp/include/platform_def.h |  4 ++
+ 3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/bl31/bl31_main.c b/bl31/bl31_main.c
+index 925c6a69f..e4ab02d05 100644
+--- a/bl31/bl31_main.c
++++ b/bl31/bl31_main.c
+@@ -1,11 +1,14 @@
+ /*
+  * Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
+  *
++ * Copyright 2024 NXP
++ *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
+ #include <assert.h>
+ #include <string.h>
++#include <stdint.h>
+ 
+ #include <arch.h>
+ #include <arch_features.h>
+@@ -24,6 +27,10 @@
+ #include <plat/common/platform.h>
+ #include <services/std_svc.h>
+ 
++extern bool is_linux_next;
++bool m33_image_booted(void);
++int m33_image_handshake(long timeout_ms);
++
+ #if ENABLE_RUNTIME_INSTRUMENTATION
+ 	PMF_REGISTER_SERVICE_SMC(rt_instr_svc, PMF_RT_INSTR_SVC_ID,
+ 		RT_INSTR_TOTAL_IDS, PMF_STORE_ENABLE)
+@@ -283,6 +290,16 @@ void __init bl31_prepare_next_image_entry(void)
+ 	} else {
+ 		cm_prepare_el3_exit(image_type);
+ 	}
++
++	if(is_linux_next && m33_image_booted()) {
++		int ret = m33_image_handshake(3000);
++		if(!ret)
++			NOTICE("M33 Sync: OK\n");
++		else {
++			NOTICE("M33 Sync: Timeout, Boot Stop!\n");
++			while(1);
++		}
++	}
+ }
+ 
+ /*******************************************************************************
+diff --git a/plat/imx/imx8ulp/imx8ulp_bl31_setup.c b/plat/imx/imx8ulp/imx8ulp_bl31_setup.c
+index cd9361c21..416740072 100644
+--- a/plat/imx/imx8ulp/imx8ulp_bl31_setup.c
++++ b/plat/imx/imx8ulp/imx8ulp_bl31_setup.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2021 NXP
++ * Copyright 2021, 2024 NXP
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -28,8 +28,54 @@
+ #include <upower_api.h>
+ #include <xrdc.h>
+ 
++#include <lib/libc/errno.h>
++#include <drivers/delay_timer.h>
++
+ #define TRUSTY_PARAMS_LEN_BYTES      (4096*2)
+ 
++bool is_linux_next = false;
++
++bool m33_image_booted(void)
++{
++	uint32_t gpr0 = mmio_read_32(SIM1_BASE_ADDR);
++	if (gpr0 & BIT(0))
++		return true;
++	return false;
++}
++
++int m33_image_handshake(long timeout_ms)
++{
++        uint32_t fsr;
++        int ret;
++        unsigned long timeout_us = timeout_ms * 1000;
++
++        /* Notify m33 that it's ready to do init srtm(enable mu receive interrupt and so on) */
++         mmio_setbits_32(MU0_B_BASE_ADDR + 0x100, BIT(0)); /* set FCR F0 flag of MU0_MUB */
++
++        /*
++         * Wait m33 to set FCR F0 flag of MU0_MUA
++         * Clear FCR F0 flag of MU0_MUB after m33 has set FCR F0 flag of MU0_MUA
++         */
++
++	unsigned long timeout = timeout_init_us(timeout_us);
++        for (;;) {
++                fsr = mmio_read_32(MU0_B_BASE_ADDR + 0x104);
++                if (fsr & BIT(0))
++                        break;
++                if (timeout_us && timeout_elapsed(timeout)) {
++                        fsr = mmio_read_32(MU0_B_BASE_ADDR + 0x104);
++                        break;
++                }
++		udelay(10);
++        }
++        ret = (fsr & BIT(0)) ? 0 : -ETIMEDOUT;
++
++        if (!ret)
++                 mmio_clrbits_32(MU0_B_BASE_ADDR + 0x100, BIT(0));
++
++        return ret;
++}
++
+ static entry_point_info_t bl32_image_ep_info;
+ static entry_point_info_t bl33_image_ep_info;
+ 
+@@ -104,8 +150,16 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
+ 
+ 	bl33_image_ep_info.pc = PLAT_NS_IMAGE_OFFSET;
+ 	bl33_image_ep_info.spsr = get_spsr_for_bl33_entry();
++	// RAM FDT address
++	bl33_image_ep_info.args.arg0 = (u_register_t)0x83000000;
++	bl33_image_ep_info.args.arg1 = 0U;
++	bl33_image_ep_info.args.arg2 = 0U;
++	bl33_image_ep_info.args.arg3 = 0U;
+ 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);
+ 
++	if(*((uint32_t *)(bl33_image_ep_info.pc + 0x38)) == ARM64_IMAGE_MAGIC)
++		is_linux_next = true;
++
+ #if defined(SPD_opteed) || defined(SPD_trusty)
+ 	/* Populate entry point information for BL32 */
+ 	SET_PARAM_HEAD(&bl32_image_ep_info, PARAM_EP, VERSION_1, 0);
+diff --git a/plat/imx/imx8ulp/include/platform_def.h b/plat/imx/imx8ulp/include/platform_def.h
+index 77268018c..32360457f 100644
+--- a/plat/imx/imx8ulp/include/platform_def.h
++++ b/plat/imx/imx8ulp/include/platform_def.h
+@@ -51,6 +51,10 @@
+ #define MAX_MMAP_REGIONS		11
+ #endif
+ 
++#define ARM64_IMAGE_MAGIC		U(0x644d5241)
++#define MU0_B_BASE_ADDR 		U(0x29220000)
++#define SIM1_BASE_ADDR  		U(0x29290000)
++
+ #define PLAT_GICD_BASE			U(0x2d400000)
+ #define PLAT_GICR_BASE			U(0x2d440000)
+ #define DEVICE0_BASE			U(0x20000000)
+-- 
+2.25.1
+

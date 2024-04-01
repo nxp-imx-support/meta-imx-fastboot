@@ -1,0 +1,39 @@
+From d2ebd44aee4023eed7a75d8c8c62424e95411757 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Tue, 24 Sep 2024 14:24:19 +0300
+Subject: [PATCH] imx8qxp: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ iMX8QX/soc.mak | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/iMX8QX/soc.mak b/iMX8QX/soc.mak
+index 4817f32..daaf370 100755
+--- a/iMX8QX/soc.mak
++++ b/iMX8QX/soc.mak
+@@ -40,6 +40,12 @@ u-boot-atf.bin: u-boot-hash.bin bl31.bin
+ 	@cp bl31.bin u-boot-atf.bin
+ 	@dd if=u-boot-hash.bin of=u-boot-atf.bin bs=1K seek=128
+ 
++uImage: Image
++	mkimage -A arm -O linux -T kernel -C none -a 0x801FFFC0 -e 0x80200000 -n "Linux kernel" -d Image uImage
++
++kernel-atf-container.img:
++	./$(MKIMG) -soc QX -rev B0 -c -ap bl31.bin a35 0x80000000 -ap Image a35 0x80020000 -out kernel-atf-container.img
++
+ u-boot-atf.itb: u-boot-hash.bin bl31.bin
+ 	./$(PAD_IMAGE) bl31.bin
+ 	./$(PAD_IMAGE) u-boot-hash.bin
+@@ -70,7 +76,7 @@ Image1: Image
+ 
+ .PHONY: clean nightly
+ clean:
+-	@rm -f $(MKIMG) $(DCD_CFG) .imx8qx_dcd.cfg.cfgtmp.d u-boot-atf-container.img Image0 Image1
++	@rm -f $(MKIMG) $(DCD_CFG) .imx8qx_dcd.cfg.cfgtmp.d u-boot-atf-container.img Image0 Image1 kernel-atf-container.img uImage
+ 	@rm -rf extracted_imgs
+ 	@echo "imx8qx clean done"
+ 
+-- 
+2.25.1
+

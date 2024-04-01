@@ -1,0 +1,135 @@
+From bdd24e5efb8d8733490836830ea2d2bb376297a9 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Tue, 24 Sep 2024 14:20:19 +0300
+Subject: [PATCH] imx8m: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ iMX8M/mkimage_fit_atf.sh        |  1 +
+ iMX8M/mkimage_fit_atf_kernel.sh | 75 +++++++++++++++++++++++++++++++++
+ iMX8M/soc.mak                   | 10 ++++-
+ 3 files changed, 85 insertions(+), 1 deletion(-)
+ create mode 100755 iMX8M/mkimage_fit_atf_kernel.sh
+
+diff --git a/iMX8M/mkimage_fit_atf.sh b/iMX8M/mkimage_fit_atf.sh
+index b0a9045..59084c2 100755
+--- a/iMX8M/mkimage_fit_atf.sh
++++ b/iMX8M/mkimage_fit_atf.sh
+@@ -82,6 +82,7 @@ cat << __HEADER_EOF
+ 			data = /incbin/("$BL33");
+ 			type = "standalone";
+ 			arch = "arm64";
++			os = "u-boot";
+ 			compression = "none";
+ 			load = <0x40200000>;
+ 		};
+diff --git a/iMX8M/mkimage_fit_atf_kernel.sh b/iMX8M/mkimage_fit_atf_kernel.sh
+new file mode 100755
+index 0000000..17b109a
+--- /dev/null
++++ b/iMX8M/mkimage_fit_atf_kernel.sh
+@@ -0,0 +1,75 @@
++#!/bin/sh
++
++## This script creates the FIT source image (.its) which includes the ATF and the kernel.
++
++[ -z "$BL31" ] && BL31="bl31.bin"
++
++if [ ! -f $BL31 ]; then
++	echo "ERROR: BL31 file $BL31 NOT found" >&2
++	exit 0
++else
++	echo "$BL31 size: " >&2
++	ls -lct $BL31 | awk '{print $5}' >&2
++fi
++
++if [ -z "$ATF_LOAD_ADDR" ]; then
++	echo "ERROR: BL31 load address is not set" >&2
++	exit 0
++fi
++
++[ -z "$KERNEL_IMAGE" ] && KERNEL_IMAGE="Image"
++
++if [ ! -f $KERNEL_IMAGE ]; then
++	echo "ERROR: Kernel file $KERNEL_IMAGE NOT found" >&2
++	exit 0
++else
++	echo "$KERNEL_IMAGE size: " >&2
++	ls -lct $KERNEL_IMAGE | awk '{print $5}' >&2
++fi
++
++if [ -z "$KERNEL_LOAD_ADDR" ]; then
++	echo "ERROR: Kernel load address is not set" >&2
++	exit 0
++fi
++
++cat << __HEADER_EOF
++/dts-v1/;
++
++/ {
++	description = "FIT Image File for i.MX8M Linux kernel + ATF";
++	#address-cells = <1>;
++
++	images {
++
++		kernel {
++			description = "AARM64 Linux kernel";
++			data = /incbin/("$KERNEL_IMAGE");
++			type = "kernel";
++			arch = "arm64";
++			compression = "none";
++			load = <$KERNEL_LOAD_ADDR>;
++			entry = <$KERNEL_LOAD_ADDR>;
++		};
++
++		atf-1 {
++			description = "ARM Trusted Firmware";
++			data = /incbin/("$BL31");
++			arch = "arm64";
++			type = "firmware";
++			compression = "none";
++			load = <$ATF_LOAD_ADDR>;
++			entry = <$ATF_LOAD_ADDR>;
++		};
++	};
++
++	configurations {
++		default = "config-1";
++		config-1 {
++			description = "Boot Linux kernel";
++			kernel = "kernel";
++			firmware = "atf-1";
++			loadables = "kernel";
++		};
++	};
++};
++__HEADER_EOF
+diff --git a/iMX8M/soc.mak b/iMX8M/soc.mak
+index e7c762b..4a4928f 100644
+--- a/iMX8M/soc.mak
++++ b/iMX8M/soc.mak
+@@ -149,12 +149,20 @@ u-boot-atf-tee.bin: u-boot.bin bl31.bin $(TEE)
+ 
+ .PHONY: clean
+ clean:
+-	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
++	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG) kernel-atf.itb uImage
+ 
+ dtb = evk.dtb
+ $(dtb):
+ 	./$(DTB_PREPROC) $(PLAT)-evk.dtb $(dtb) $(dtbs)
+ 
++uImage: Image
++	mkimage -A arm -O linux -T kernel -C none -a 0x43FFFFC0 -e 0x44000000 -n "Linux kernel" -d Image uImage
++
++kernel-atf.itb: bl31.bin Image
++	ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) KERNEL_LOAD_ADDR=0x40200000 ../$(SOC_DIR)/mkimage_fit_atf_kernel.sh > kernel-atf.its
++	uboot-mkimage -E -p 0x3000 -f kernel-atf.its kernel-atf.itb
++	@rm -f kernel-atf.its
++
+ u-boot.itb: $(dtb) $(supp_dtbs)
+ 	./$(PAD_IMAGE) $(TEE)
+ 	./$(PAD_IMAGE) bl31.bin
+-- 
+2.25.1
+

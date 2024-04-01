@@ -1,0 +1,68 @@
+From a0bf55991a545cf94f67149cec17a7d2e717c5c7 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Wed, 4 Dec 2024 11:39:27 +0200
+Subject: [PATCH] imx8qxp: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ board/freescale/imx8qxp_mek/spl.c | 16 +++++++++++++++-
+ include/configs/imx8qxp_mek.h     |  2 ++
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/board/freescale/imx8qxp_mek/spl.c b/board/freescale/imx8qxp_mek/spl.c
+index ca0dcba35cd..b96d48e57c7 100644
+--- a/board/freescale/imx8qxp_mek/spl.c
++++ b/board/freescale/imx8qxp_mek/spl.c
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ /*
+- * Copyright 2018, 2021 NXP
++ * Copyright 2018, 2021, 2024 NXP
+  *
+  */
+ 
+@@ -24,9 +24,23 @@
+ #include <asm/arch/sys_proto.h>
+ #include <asm/sections.h>
+ #include <bootm.h>
++#include <serial.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++#ifdef CONFIG_SPL_OS_BOOT
++int spl_start_uboot(void) {
++	if (IS_ENABLED(CONFIG_SPL_SERIAL) && serial_tstc() && serial_getc()) {
++	/* break into full u boot if any key is pressed */
++		while(serial_tstc()) { /* eat up all the remaining characters */
++			serial_getc();
++		}
++		return 1;
++	}
++	return 0; // start the Kernel
++}
++#endif
++
+ #define GPIO_PAD_CTRL	((SC_PAD_CONFIG_NORMAL << PADRING_CONFIG_SHIFT) | \
+ 			 (SC_PAD_ISO_OFF << PADRING_LPCONFIG_SHIFT) | \
+ 			 (SC_PAD_28FDSOI_DSE_DV_HIGH << PADRING_DSE_SHIFT) | \
+diff --git a/include/configs/imx8qxp_mek.h b/include/configs/imx8qxp_mek.h
+index 66ab1c976ce..1fda11e7446 100644
+--- a/include/configs/imx8qxp_mek.h
++++ b/include/configs/imx8qxp_mek.h
+@@ -61,11 +61,13 @@
+ 	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
+ 	"mmcautodetect=yes\0" \
+ 	"mmcargs=setenv bootargs console=${console},${baudrate} earlycon root=${mmcroot}\0 " \
++	"mmcargs_fastboot=setenv bootargs console=${console},${baudrate} earlycon root=${mmcroot} quiet\0 " \
+ 	"loadbootscript=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
+ 	"bootscript=echo Running bootscript from mmc ...; " \
+ 		"source\0" \
+ 	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
+ 	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
++	"prepare_fdt=run loadfdt;ext2load mmc ${mmcdev}:2 ${loadaddr} /home/root/.falcon/uImage;run mmcargs_fastboot;spl export fdt ${loadaddr} - ${fdt_addr};fatwrite mmc ${mmcdev}:${mmcpart} ${fdt_addr} " CONFIG_SPL_FS_LOAD_ARGS_NAME " ${fdtargslen}\0" \
+ 	"loadcntr=fatload mmc ${mmcdev}:${mmcpart} ${cntr_addr} ${cntr_file}\0" \
+ 	"auth_os=auth_cntr ${cntr_addr}\0" \
+ 	"boot_os=booti ${loadaddr} - ${fdt_addr};\0" \
+-- 
+2.25.1
+

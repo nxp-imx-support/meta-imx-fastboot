@@ -1,0 +1,37 @@
+From e71c6f805edcf37dd27a9724c5a852d776443728 Mon Sep 17 00:00:00 2001
+From: Elena Popa <elena.popa@nxp.com>
+Date: Fri, 29 Nov 2024 16:44:52 +0200
+Subject: [PATCH] imx8ulp: add falcon mode support
+
+Signed-off-by: Elena Popa <elena.popa@nxp.com>
+---
+ iMX8ULP/soc.mak | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/iMX8ULP/soc.mak b/iMX8ULP/soc.mak
+index dd61cd7..77b1b96 100644
+--- a/iMX8ULP/soc.mak
++++ b/iMX8ULP/soc.mak
+@@ -67,9 +67,18 @@ u-boot-atf-container.img: bl31.bin u-boot-hash.bin
+ 		./$(MKIMG) -soc ULP -c -ap bl31.bin a35 $(ATF_LOAD_ADDR) -ap u-boot-hash.bin a35 $(UBOOT_LOAD_ADDR) -out u-boot-atf-container.img; \
+ 	fi
+ 
++kernel-atf-container.img: bl31.bin Image
++	./$(MKIMG) -soc ULP -c \
++		-ap bl31.bin a35 $(ATF_LOAD_ADDR) \
++		-ap Image a35 $(UBOOT_LOAD_ADDR) \
++		-out kernel-atf-container.img;
++
++uImage: Image
++	mkimage -A arm -O linux -T kernel -C none -a 0x83FFFFC0 -e 0x84000000 -n "Linux kernel" -d Image uImage
++
+ .PHONY: clean nightly
+ clean:
+-	@rm -f $(MKIMG) u-boot-atf-container.img
++	@rm -f $(MKIMG) u-boot-atf-container.img kernel-atf-container.img uImage
+ 	@rm -rf extracted_imgs
+ 	@echo "imx8ulp clean done"
+ 
+-- 
+2.25.1
+
