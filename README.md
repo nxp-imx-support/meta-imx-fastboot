@@ -1,18 +1,15 @@
 i.MX Fast Boot Meta-Layer
 =======================
 
-**What's new**
-* Add support for the i.MX 8QXP, i.MX 8MQ and i.MX 8ULP
-* Layer restructure
------------------------
+**Note: Before starting, make sure that the correct branch is selected, according to the intended BSP release.**
 
-This layer creates custom images with Falcon Mode enabled in U-Boot. Full description of this method can be found in [AN14093](https://www.nxp.com.cn/docs/en/application-note/AN14093.pdf). **Note: The AN14093 has not yet been updated for the LF 6.6.36-2.1.0 BSP version. Please, follow the steps described below in order to build the image with Falcon Mode enabled.**
+This layer creates custom images with Falcon Mode enabled in U-Boot. Full description of this method can be found in [AN14093](https://www.nxp.com.cn/docs/en/application-note/AN14093.pdf).
 
 It supports the **i.MX 8QuadXPlus**, **i.MX 8M Family** (i.MX 8M Quad, i.MX 8M Nano, i.MX 8M Mini, i.MX 8M Plus), **i.MX 8ULP** and the **i.MX 9 Family** (i.MX 93 and i.MX 95).
 
 Yocto Image
 -----------
-Follow the below instructions for building the image.
+Follow the instructions below for building the image.
 
 #### Prepare the Yocto Project BSP
 
@@ -24,7 +21,7 @@ Clone the `meta-imx-fastboot` layer into your sources directory.
 
 ```sh
 cd ~/imx-yocto-bsp/sources
-git clone -b lf-6.6.36-2.1.0 https://github.com/nxp-imx-support/meta-imx-fastboot
+git clone -b lf-6.6.52-2.2.0 https://github.com/nxp-imx-support/meta-imx-fastboot
 ```
 	
 #### Setup the build folder
@@ -72,10 +69,12 @@ You can find the resulted image into the deploy directory: `~/imx-yocto-bsp/<bui
 
 #### Write the image on the SD/eMMC
 
-To write the image on the eMMC using UUU, use the following command:
+To write the image on the eMMC using UUU, use the following commands:
 
 ```sh
-uuu -b emmc_all <image_name>-<machine_name>.rootfs.wic.zst
+unzstd <image_name>-<machine_name>.rootfs.wic.zst
+uuu -b emmc_all <default_bootloader> <image_name>-<machine_name>.rootfs.wic
+uuu -b emmc <default_bootloader> <falcon_mode_bootloader>
 ```
 If you want to write the SD using UUU, replace `emmc` with `sd`.
 
