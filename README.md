@@ -1,6 +1,8 @@
 i.MX Fast Boot Meta-Layer
 =======================
 
+**Note: Before starting, make sure that the correct branch is selected, according to the intended BSP release.**
+
 This layer creates custom images with Falcon Mode enabled in U-Boot. Full description of this method can be found in [AN14093](https://www.nxp.com.cn/docs/en/application-note/AN14093.pdf).
 
 It supports the **i.MX8M Family** (i.MX8M Nano, i.MX8M Mini, i.MX8M Plus) and the **i.MX9 Family** (i.MX93 and i.MX95). 
